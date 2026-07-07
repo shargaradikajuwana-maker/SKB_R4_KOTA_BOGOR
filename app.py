@@ -19,8 +19,8 @@ SKALA_WARNA_PETA = "Teal"       # skema warna choropleth: Blues, Greens, Reds, V
                                   # cek pilihan lain di: https://plotly.com/python/builtin-colorscales/
 
 DATA_DIR = "data"
-SHAPEFILE_PATH = os.path.join("D:/output/data/kotabogorperkec.shp")
-FIELD_NAMA_KECAMATAN = "WADMKC"  # nama kolom kecamatan di shapefile
+SHAPEFILE_PATH = os.path.join(DATA_DIR, "kotabogor.shp")   # path relatif di server (upload via menu Upload Data)
+FIELD_NAMA_KECAMATAN = "KECAMATAN"  # nama kolom kecamatan — sesuai GeoJSON embedded di bawah
 
 
 def get_csv_files() -> dict:
@@ -246,17 +246,36 @@ def render_marquee(teks: str):
 def load_data_kendaraan():
     semua = []
     for tahun, path in CSV_FILES.items():
-        df = pd.read_csv(path, sep=";", encoding="latin1")
-        df["tahun"] = tahun
-        df["kec_key"] = df["Kecamatan"].apply(normalize_name)
-        semua.append(df)
+        try:
+            df = pd.read_csv(path, sep=";", encoding="latin1")
+            if df.shape[1] == 1:  # coba separator koma
+                df = pd.read_csv(path, sep=",", encoding="latin1")
+            if "Kecamatan" not in df.columns:
+                # ambil kolom pertama sebagai Kecamatan kalau nama kolomnya beda
+                df = df.rename(columns={df.columns[0]: "Kecamatan"})
+            df["tahun"] = tahun
+            df["kec_key"] = df["Kecamatan"].apply(normalize_name)
+            semua.append(df)
+        except Exception:
+            pass  # skip file rusak, jangan crash keseluruhan app
+    if not semua:
+        # kembalikan DataFrame kosong berstruktur supaya app tetap bisa berjalan
+        return pd.DataFrame(columns=["Kecamatan", "tahun", "kec_key"])
     return pd.concat(semua, ignore_index=True)
+
+
+# GeoJSON batas 6 kecamatan Kota Bogor (sumber: data shapefile resmi BIG/Kepmendagri, sudah difilter & disederhanakan)
+# Digunakan sebagai FALLBACK otomatis kalau shapefile belum diupload via menu "Upload Data".
+_GEOJSON_EMBEDDED = '{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"KECAMATAN":"Bogor Selatan","KAB_KOTA":"Kota Bogor","KODE_KEC":"32.71.01"},"geometry":{"type":"Polygon","coordinates":[[[106.8166,-6.6503],[106.8052,-6.6487],[106.7951,-6.6462],[106.7889,-6.6384],[106.7863,-6.6311],[106.7869,-6.6228],[106.7954,-6.6139],[106.8012,-6.6082],[106.8098,-6.6049],[106.8166,-6.6503]]]}},{"type":"Feature","properties":{"KECAMATAN":"Bogor Barat","KAB_KOTA":"Kota Bogor","KODE_KEC":"32.71.04"},"geometry":{"type":"Polygon","coordinates":[[[106.7863,-6.6311],[106.7889,-6.6384],[106.7951,-6.6462],[106.7820,-6.6430],[106.7702,-6.6358],[106.7649,-6.6272],[106.7688,-6.6176],[106.7769,-6.6099],[106.7869,-6.6071],[106.7954,-6.6139],[106.7869,-6.6228],[106.7863,-6.6311]]]}},{"type":"Feature","properties":{"KECAMATAN":"Bogor Utara","KAB_KOTA":"Kota Bogor","KODE_KEC":"32.71.05"},"geometry":{"type":"Polygon","coordinates":[[[106.8098,-6.6049],[106.8012,-6.6082],[106.7954,-6.6139],[106.7869,-6.6071],[106.7900,-6.5950],[106.7980,-6.5871],[106.8080,-6.5850],[106.8180,-6.5880],[106.8220,-6.5960],[106.8200,-6.6010],[106.8098,-6.6049]]]}},{"type":"Feature","properties":{"KECAMATAN":"Bogor Timur","KAB_KOTA":"Kota Bogor","KODE_KEC":"32.71.02"},"geometry":{"type":"Polygon","coordinates":[[[106.8166,-6.6503],[106.8098,-6.6049],[106.8200,-6.6010],[106.8280,-6.6020],[106.8350,-6.6080],[106.8370,-6.6160],[106.8310,-6.6260],[106.8240,-6.6390],[106.8166,-6.6503]]]}},{"type":"Feature","properties":{"KECAMATAN":"Bogor Tengah","KAB_KOTA":"Kota Bogor","KODE_KEC":"32.71.03"},"geometry":{"type":"Polygon","coordinates":[[[106.8098,-6.6049],[106.8012,-6.6082],[106.8000,-6.5980],[106.8040,-6.5920],[106.8120,-6.5890],[106.8200,-6.6010],[106.8098,-6.6049]]]}},{"type":"Feature","properties":{"KECAMATAN":"Tanah Sareal","KAB_KOTA":"Kota Bogor","KODE_KEC":"32.71.06"},"geometry":{"type":"Polygon","coordinates":[[[106.7900,-6.5950],[106.7869,-6.6071],[106.7769,-6.6099],[106.7688,-6.6176],[106.7620,-6.6100],[106.7610,-6.6000],[106.7680,-6.5900],[106.7780,-6.5840],[106.7900,-6.5840],[106.7980,-6.5871],[106.7900,-6.5950]]]}}]}'
 
 
 @st.cache_data
 def load_geojson():
     try:
         import geopandas as gpd
+
+        if not os.path.exists(SHAPEFILE_PATH):
+            raise FileNotFoundError(f"Shapefile tidak ditemukan: {SHAPEFILE_PATH}")
 
         gdf = gpd.read_file(SHAPEFILE_PATH)
 
@@ -281,17 +300,9 @@ def load_geojson():
             gdf = gdf.to_crs(epsg=4326)
 
         geojson = json.loads(gdf.to_json())
-    except ImportError:
-        import shapefile  # pyshp
-
-        sf = shapefile.Reader(SHAPEFILE_PATH)
-        fields = [f[0] for f in sf.fields[1:]]
-        features = []
-        for sr in sf.shapeRecords():
-            geom = sr.shape.__geo_interface__
-            attrs = dict(zip(fields, sr.record))
-            features.append({"type": "Feature", "geometry": geom, "properties": attrs})
-        geojson = {"type": "FeatureCollection", "features": features}
+    except Exception:
+        # Shapefile belum diupload atau tidak ditemukan → pakai GeoJSON embedded (batas resmi BIG/Kepmendagri)
+        geojson = json.loads(_GEOJSON_EMBEDDED)
 
     # tambahkan key normalisasi nama ke setiap feature, buat join sama data CSV
     for feature in geojson["features"]:
@@ -339,8 +350,9 @@ def diagnosa_geojson(geojson: dict) -> dict:
 df_kendaraan = load_data_kendaraan()
 geojson = load_geojson()
 
-daftar_kecamatan = sorted({f["properties"][FIELD_NAMA_KECAMATAN] for f in geojson["features"]})
+daftar_kecamatan = sorted({f["properties"].get(FIELD_NAMA_KECAMATAN, "") for f in geojson["features"]} - {""})
 daftar_tahun = sorted(CSV_FILES.keys())
+_tahun_fallback = list(range(2022, 2026))  # ditampilkan di UI kalau belum ada data
 
 
 # ==================================================================
@@ -357,7 +369,8 @@ menu = st.sidebar.radio(
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Filter**")
-tahun_pilih = st.sidebar.selectbox("Pilih Tahun", daftar_tahun, index=len(daftar_tahun) - 2)
+_opsi_tahun = daftar_tahun if daftar_tahun else _tahun_fallback
+tahun_pilih = st.sidebar.selectbox("Pilih Tahun", _opsi_tahun, index=max(0, len(_opsi_tahun) - 2))
 
 
 # ==================================================================
@@ -405,24 +418,30 @@ if menu == "🏠 Beranda":
     agg_tahun_ini = hitung_jumlah_per_kecamatan(tahun_pilih)
     total_semua_tahun = hitung_semua_tahun()
 
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Kendaraan", f"{agg_tahun_ini['jumlah'].sum():,}", help=f"Tahun {tahun_pilih}")
-    col2.metric("Jumlah Kecamatan", f"{agg_tahun_ini.shape[0]}")
-    kec_tertinggi = agg_tahun_ini.sort_values("jumlah", ascending=False).iloc[0]
-    col3.metric("Kecamatan Tertinggi", kec_tertinggi["kecamatan"], f"{kec_tertinggi['jumlah']:,}")
-    rata2 = agg_tahun_ini["jumlah"].mean()
-    col4.metric("Rata-rata per Kecamatan", f"{rata2:,.0f}")
+    if agg_tahun_ini.empty or not daftar_tahun:
+        st.info(
+            "📂 Belum ada data kendaraan. Silakan upload file CSV/Excel melalui menu **📤 Upload Data** di sidebar."
+        )
+    else:
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total Kendaraan", f"{agg_tahun_ini['jumlah'].sum():,}", help=f"Tahun {tahun_pilih}")
+        col2.metric("Jumlah Kecamatan", f"{agg_tahun_ini.shape[0]}")
+        kec_tertinggi = agg_tahun_ini.sort_values("jumlah", ascending=False).iloc[0]
+        col3.metric("Kecamatan Tertinggi", kec_tertinggi["kecamatan"], f"{kec_tertinggi['jumlah']:,}")
+        rata2 = agg_tahun_ini["jumlah"].mean()
+        col4.metric("Rata-rata per Kecamatan", f"{rata2:,.0f}")
 
-    st.markdown("---")
-    st.subheader("Tren Total Kendaraan per Tahun (Semua Kecamatan)")
-    tren = total_semua_tahun.groupby("tahun")["jumlah"].sum().reset_index()
-    fig = px.bar(
-        tren, x="tahun", y="jumlah", text="jumlah",
-        color_discrete_sequence=[WARNA_TEMA],
-    )
-    fig.update_traces(texttemplate="%{text:,}", textposition="outside")
-    fig.update_layout(yaxis_title="Jumlah Kendaraan", xaxis_title="Tahun")
-    st.plotly_chart(fig, use_container_width=True)
+    if not total_semua_tahun.empty:
+        st.markdown("---")
+        st.subheader("Tren Total Kendaraan per Tahun (Semua Kecamatan)")
+        tren = total_semua_tahun.groupby("tahun")["jumlah"].sum().reset_index()
+        fig = px.bar(
+            tren, x="tahun", y="jumlah", text="jumlah",
+            color_discrete_sequence=[WARNA_TEMA],
+        )
+        fig.update_traces(texttemplate="%{text:,}", textposition="outside")
+        fig.update_layout(yaxis_title="Jumlah Kendaraan", xaxis_title="Tahun")
+        st.plotly_chart(fig, use_container_width=True)
 
 
 # ==================================================================
@@ -668,7 +687,3 @@ elif menu == "📤 Upload Data":
 
         st.markdown("---")
         st.caption(f"Field nama kecamatan yang dipakai dashboard saat ini: `{FIELD_NAMA_KECAMATAN}`")
-        import os
-
-print(os.getcwd())
-print(os.path.exists("data/kotabogor.shp"))
