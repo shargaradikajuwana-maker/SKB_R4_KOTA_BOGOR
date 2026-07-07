@@ -19,7 +19,7 @@ SKALA_WARNA_PETA = "Teal"       # skema warna choropleth: Blues, Greens, Reds, V
                                   # cek pilihan lain di: https://plotly.com/python/builtin-colorscales/
 
 DATA_DIR = "."
-SHAPEFILE_PATH = os.path.join("D:/output/data/kotabogorperkec.shp")
+SHAPEFILE_PATH = os.path.join("kotabogorperkec.shp")
 FIELD_NAMA_KECAMATAN = "WADMKC"  # nama kolom kecamatan di shapefile
 
 
