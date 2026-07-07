@@ -18,7 +18,7 @@ WARNA_TEMA_MUDA = "#A8DADC"     # warna aksen muda
 SKALA_WARNA_PETA = "Teal"       # skema warna choropleth: Blues, Greens, Reds, Viridis, Teal, dll
                                   # cek pilihan lain di: https://plotly.com/python/builtin-colorscales/
 
-DATA_DIR = "data"
+DATA_DIR = "."
 SHAPEFILE_PATH = os.path.join("D:/output/data/kotabogorperkec.shp")
 FIELD_NAMA_KECAMATAN = "WADMKC"  # nama kolom kecamatan di shapefile
 
