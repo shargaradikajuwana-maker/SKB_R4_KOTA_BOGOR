@@ -1,0 +1,12 @@
+streamlit
+pandas
+plotly
+pyshp
+shapely
+pyproj
+
+# Catatan: requirements.txt ini sengaja TIDAK pakai geopandas,
+# karena geopandas butuh library sistem (GDAL) yang sering gagal
+# saat deploy di Streamlit Community Cloud.
+# Script app.py sudah otomatis pakai pyshp sebagai pengganti geopandas
+# kalau geopandas tidak ditemukan, jadi tetap berfungsi normal.
