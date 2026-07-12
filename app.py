@@ -40,7 +40,7 @@ def get_csv_files() -> dict:
 CSV_FILES = get_csv_files()
 
 # --- KONFIGURASI BARU: judul & gambar latar belakang Beranda ---
-JUDUL_DASHBOARD = "SKB - R🚗"
+JUDUL_DASHBOARD = "Sistem Informasi Spasial Monitoring Kepemilikan Kendaraan Roda 4 Kota Bogor"
 SUBJUDUL_DASHBOARD = "Persebaran Jumlah Kendaraan Roda 4 Terdaftar Tahun 2022 - 2025"
 BACKGROUND_IMAGE_PATH = os.path.join(DATA_DIR, "background_samsat.jpg")  # ganti sesuai nama file gambar Anda
 TEKS_BERJALAN = (
@@ -50,7 +50,7 @@ TEKS_BERJALAN = (
 )
 
 st.set_page_config(
-    page_title="SKB - R🚗",
+    page_title="Sistem Informasi Spasial Monitoring Kepemilikan Kendaraan Roda 4 Kota Bogor",
     page_icon="🚗",
     layout="wide",
 )
@@ -346,7 +346,7 @@ daftar_tahun = sorted(CSV_FILES.keys())
 # ==================================================================
 # SIDEBAR - MENU & FILTER
 # ==================================================================
-st.sidebar.markdown(f"<h2 style='color:{WARNA_TEMA};'>SKB - R🚗</h2>", unsafe_allow_html=True)
+st.sidebar.markdown(f"<h2 style='color:{WARNA_TEMA};'> Sistem Informasi Spasial Monitoring Kepemilikan Kendaraan Roda 4 Kota Bogor </h2>", unsafe_allow_html=True)
 st.sidebar.caption("Kota Bogor - Data Registrasi Kendaraan Roda 4")
 st.sidebar.markdown("---")
 
